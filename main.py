@@ -1,4 +1,5 @@
 import json
+import logging
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -37,7 +38,7 @@ def get_instructions(data: dict) -> str:
 def get_cocktail(cocktail: str) -> str:
     error = None
     try:
-        print(f'Fetching cocktail {cocktail} information')
+        logging.info(f'Fetching cocktail {cocktail} information')
         data = get_cocktail_data(cocktail)
         return {
             'error': None,
@@ -45,16 +46,18 @@ def get_cocktail(cocktail: str) -> str:
             'ingredients': get_ingredients(data)
         }, 200
     except urllib.error.HTTPError as e:
-        print('There was an HTTP error while getting cocktail information')
-        print(e)
+        logging.error(
+            'There was an HTTP error while getting cocktail information'
+        )
+        logging.error(e)
         error = e
     except urllib.error.URLError as e:
-        print('Looks like the ULR is malformed')
-        print(e)
+        logging.error('Looks like the ULR is malformed')
+        logging.error(e)
         error = e
     except Exception as e:
-        print('Internal server error')
-        print(e)
+        logging.error('Internal server error')
+        logging.error(e)
         error = e
     finally:
         if error is not None:
