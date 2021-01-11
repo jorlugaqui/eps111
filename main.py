@@ -7,6 +7,10 @@ from flask import Flask
 
 COCKTAIL_API_HOST = 'https://www.thecocktaildb.com/api/json/v1/1/search.php'
 
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 
 
@@ -38,7 +42,7 @@ def get_instructions(data: dict) -> str:
 def get_cocktail(cocktail: str) -> str:
     error = None
     try:
-        logging.info(f'Fetching cocktail {cocktail} information')
+        logger.info(f'Fetching cocktail {cocktail} information')
         data = get_cocktail_data(cocktail)
         return {
             'error': None,
@@ -46,18 +50,18 @@ def get_cocktail(cocktail: str) -> str:
             'ingredients': get_ingredients(data)
         }, 200
     except urllib.error.HTTPError as e:
-        logging.error(
+        logger.error(
             'There was an HTTP error while getting cocktail information'
         )
-        logging.error(e)
+        logger.error(e)
         error = e
     except urllib.error.URLError as e:
-        logging.error('Looks like the ULR is malformed')
-        logging.error(e)
+        logger.error('Looks like the ULR is malformed')
+        logger.error(e)
         error = e
     except Exception as e:
-        logging.error('Internal server error')
-        logging.error(e)
+        logger.error('Internal server error')
+        logger.error(e)
         error = e
     finally:
         if error is not None:
