@@ -1,15 +1,25 @@
 import json
 import logging
+import sys
 import urllib.request
 import urllib.parse
 import urllib.error
+
 from flask import Flask
 
 COCKTAIL_API_HOST = 'https://www.thecocktaildb.com/api/json/v1/1/search.php'
+LOGGING_FORMAT = '%(asctime)s %(levelname)s %(name)s %(pathname)s %(message)s'
 
+# Handler configuration
+formatter = logging.Formatter(LOGGING_FORMAT)
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(formatter)
 
-logging.basicConfig(level=logging.DEBUG)
+# Logger configuration
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+logger.addHandler(console_handler)
+
 
 app = Flask(__name__)
 
@@ -53,15 +63,15 @@ def get_cocktail(cocktail: str) -> str:
         logger.error(
             'There was an HTTP error while getting cocktail information'
         )
-        logger.error(e)
+        logger.error(e, exc_info=True)
         error = e
     except urllib.error.URLError as e:
         logger.error('Looks like the ULR is malformed')
-        logger.error(e)
+        logger.error(e, exc_info=True)
         error = e
     except Exception as e:
         logger.error('Internal server error')
-        logger.error(e)
+        logger.error(e, exc_info=True)
         error = e
     finally:
         if error is not None:
