@@ -6,6 +6,7 @@ import urllib.parse
 import urllib.error
 
 from flask import Flask, request
+import logstash
 
 
 COCKTAIL_API_HOST = 'https://www.thecocktaildb.com/api/json/v1/1/search.php'
@@ -17,16 +18,19 @@ formatter = logging.Formatter(LOGGING_FORMAT)
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(formatter)
 
+# Logstash handlar configuration
+logstash_handler = logstash.TCPLogstashHandler('localhost', 5044, version=1)
+logstash_handler.setFormatter(formatter)
 
 # Logger configuration
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 logger.addHandler(console_handler)
+logger.addHandler(logstash_handler)
 
 app = Flask(__name__)
 
 
-# Taken from https://medium.com/tenable-techblog/the-boring-stuff-flask-logging-21c3a5dd0392
 @app.after_request
 def after_request(response):
     logger.info(
@@ -41,6 +45,7 @@ def after_request(response):
         request.user_agent,
     )
     return response
+
 
 def get_cocktail_data(cocktail: str) -> dict:
     query = urllib.parse.urlencode({'s': cocktail})
