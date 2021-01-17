@@ -5,24 +5,42 @@ import urllib.request
 import urllib.parse
 import urllib.error
 
-from flask import Flask
+from flask import Flask, request
+
 
 COCKTAIL_API_HOST = 'https://www.thecocktaildb.com/api/json/v1/1/search.php'
 LOGGING_FORMAT = '%(asctime)s %(levelname)s %(name)s %(pathname)s %(message)s'
 
-# Handler configuration
 formatter = logging.Formatter(LOGGING_FORMAT)
+
+# Console handler configuration
 console_handler = logging.StreamHandler(sys.stdout)
 console_handler.setFormatter(formatter)
+
 
 # Logger configuration
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 logger.addHandler(console_handler)
 
-
 app = Flask(__name__)
 
+
+# Taken from https://medium.com/tenable-techblog/the-boring-stuff-flask-logging-21c3a5dd0392
+@app.after_request
+def after_request(response):
+    logger.info(
+        "%s %s %s %s %s %s %s %s",
+        request.remote_addr,
+        request.method,
+        request.path,
+        request.scheme,
+        response.status,
+        response.content_length,
+        request.referrer,
+        request.user_agent,
+    )
+    return response
 
 def get_cocktail_data(cocktail: str) -> dict:
     query = urllib.parse.urlencode({'s': cocktail})
