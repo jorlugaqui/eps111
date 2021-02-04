@@ -5,8 +5,10 @@ import urllib.request
 import urllib.parse
 import urllib.error
 
-from flask import Flask, request
+from werkzeug.useragents import UserAgent
+
 import logstash
+from flask import Flask, request
 
 
 COCKTAIL_API_HOST = 'https://www.thecocktaildb.com/api/json/v1/1/search.php'
@@ -31,19 +33,42 @@ logger.addHandler(logstash_handler)
 app = Flask(__name__)
 
 
+# Taken from
+# https://docs.python.org/3/howto/logging-cookbook.html#implementing-structured-logging
+
+class Encoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, Exception):
+            return o.args[0]
+        if isinstance(o, UserAgent):
+            return o.string
+        return super(Encoder, self).default(o)
+
+
+class StructuredMessage:
+    def __init__(self, /, **kwargs):
+        self.kwargs = kwargs
+
+    def __str__(self):
+        s = Encoder().encode(self.kwargs)
+        return '%s' % (json.dumps(s))
+
+
+_ = StructuredMessage   # optional, to improve readability
+
+
 @app.after_request
 def after_request(response):
-    logger.info(
-        "%s %s %s %s %s %s %s %s",
-        request.remote_addr,
-        request.method,
-        request.path,
-        request.scheme,
-        response.status,
-        response.content_length,
-        request.referrer,
-        request.user_agent,
-    )
+    logger.info(_(
+        remote_addr=request.remote_addr,
+        method=request.method,
+        path=request.path,
+        schema=request.scheme,
+        status=response.status,
+        content_length=response.content_length,
+        referrer=request.referrer,
+        user_agent=request.user_agent
+    ))
     return response
 
 
@@ -55,9 +80,9 @@ def get_cocktail_data(cocktail: str) -> dict:
 
 
 def get_ingredients(data: dict) -> list:
-    index = 1
+    index: int = 1
     ingredients = []
-    ingredient = data.get('drinks')[0].get(f'strIngredient{index}')
+    ingredient: str = data.get('drinks')[0].get(f'strIngredient{index}')
 
     while ingredient is not None:
         ingredients.append(ingredient)
@@ -72,32 +97,24 @@ def get_instructions(data: dict) -> str:
 
 
 @app.route('/cocktail/<string:cocktail>')
-def get_cocktail(cocktail: str) -> str:
-    error = None
+def get_cocktail(cocktail: str) -> tuple:
+    error: str = ''
     try:
-        logger.info(f'Fetching cocktail {cocktail} information')
+        logger.info(_(message=f'Fetching cocktail {cocktail} information'))
         data = get_cocktail_data(cocktail)
         return {
             'error': None,
             'instructions': get_instructions(data),
             'ingredients': get_ingredients(data)
         }, 200
-    except urllib.error.HTTPError as e:
-        logger.error(
-            'There was an HTTP error while getting cocktail information'
-        )
-        logger.error(e, exc_info=True)
-        error = e
-    except urllib.error.URLError as e:
-        logger.error('Looks like the ULR is malformed')
-        logger.error(e, exc_info=True)
-        error = e
-    except Exception as e:
-        logger.error('Internal server error')
-        logger.error(e, exc_info=True)
-        error = e
+    except (urllib.error.HTTPError, urllib.error.URLError):
+        error = 'There was an error while fetching the cocktail information'
+        logger.error(_(message=error), exc_info=True)
+    except Exception:
+        error = 'Internal Server Error'
+        logger.error(_(message=error), exc_info=True)
     finally:
-        if error is not None:
+        if error:
             return {
                 'error': error,
                 'instructions': None,
